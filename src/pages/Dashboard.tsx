@@ -25,7 +25,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { LivingAppsService, extractRecordId, createRecordUrl } from "@/services/livingAppsService";
-import { APP_IDS, type Categories, type Locations, type Inventory } from "@/types/app";
+import { APP_IDS, type Categories, type Locations, type Inventory, type Suppliers, type GoodsReceipt } from "@/types/app";
 
 interface CategoryUI {
   record_id: string;
@@ -78,6 +78,36 @@ function transformInventory(inv: Inventory, categories: CategoryUI[], locations:
   };
 }
 
+function transformSupplier(sup: Suppliers): SupplierUI {
+  return {
+    record_id: sup.record_id,
+    name: sup.fields.name || "",
+    contact_person: sup.fields.contact_person,
+    email: sup.fields.email,
+    phone: sup.fields.phone,
+    address: sup.fields.address,
+  };
+}
+
+function transformGoodsReceipt(gr: GoodsReceipt, suppliers: SupplierUI[], items: InventoryItem[]): GoodsReceiptUI {
+  const supplierId = extractRecordId(gr.fields.supplier);
+  const itemId = extractRecordId(gr.fields.item);
+  const supplier = suppliers.find((s) => s.record_id === supplierId);
+  const item = items.find((i) => i.record_id === itemId);
+
+  return {
+    record_id: gr.record_id,
+    receipt_number: gr.fields.receipt_number || "",
+    supplier: supplierId || "",
+    supplier_name: supplier?.name,
+    item: itemId || "",
+    item_name: item?.name,
+    quantity: gr.fields.quantity || 0,
+    receipt_date: gr.fields.receipt_date || "",
+    notes: gr.fields.notes,
+  };
+}
+
 export default function Dashboard() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<CategoryUI[]>([]);
@@ -105,19 +135,25 @@ export default function Dashboard() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [catsData, locsData, invData] = await Promise.all([
+      const [catsData, locsData, invData, suppliersData, goodsReceiptsData] = await Promise.all([
         LivingAppsService.getCategories(),
         LivingAppsService.getLocations(),
         LivingAppsService.getInventory(),
+        LivingAppsService.getSuppliers(),
+        LivingAppsService.getGoodsReceipt(),
       ]);
 
       const cats = catsData.map(transformCategory);
       const locs = locsData.map(transformLocation);
       const inv = invData.map((i) => transformInventory(i, cats, locs));
+      const sups = suppliersData.map(transformSupplier);
+      const receipts = goodsReceiptsData.map((gr) => transformGoodsReceipt(gr, sups, inv));
 
       setCategories(cats);
       setLocations(locs);
       setItems(inv);
+      setSuppliers(sups);
+      setGoodsReceipts(receipts);
     } catch (error) {
       console.error("Fehler beim Laden der Daten:", error);
     } finally {
@@ -240,67 +276,83 @@ export default function Dashboard() {
     }
   };
 
-  // Supplier handlers (using local state for now)
-  const handleAddSupplier = (data: Omit<SupplierUI, "record_id"> | SupplierUI) => {
-    if ("record_id" in data && data.record_id) {
-      setSuppliers((prev) =>
-        prev.map((sup) => (sup.record_id === data.record_id ? { ...sup, ...data } : sup))
-      );
-    } else {
-      const newSupplier: SupplierUI = {
-        ...data,
-        record_id: Date.now().toString(),
+  // Supplier handlers with real API
+  const handleAddSupplier = async (data: Omit<SupplierUI, "record_id"> | SupplierUI) => {
+    try {
+      const fields: Suppliers["fields"] = {
+        name: data.name,
+        contact_person: data.contact_person,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
       };
-      setSuppliers((prev) => [...prev, newSupplier]);
+
+      if ("record_id" in data && data.record_id) {
+        await LivingAppsService.updateSupplier(data.record_id, fields);
+      } else {
+        await LivingAppsService.createSupplier(fields);
+      }
+
+      await loadAllData();
+    } catch (error) {
+      console.error("Fehler beim Speichern:", error);
     }
     setEditSupplier(null);
   };
 
-  const handleDeleteSupplier = (id: string) => {
+  const handleDeleteSupplier = async (id: string) => {
     if (confirm("Möchten Sie diesen Lieferanten wirklich löschen?")) {
-      setSuppliers((prev) => prev.filter((sup) => sup.record_id !== id));
+      try {
+        await LivingAppsService.deleteSupplier(id);
+        setSuppliers((prev) => prev.filter((sup) => sup.record_id !== id));
+      } catch (error) {
+        console.error("Fehler beim Löschen:", error);
+      }
     }
   };
 
-  // Goods Receipt handlers
-  const handleAddGoodsReceipt = (data: Omit<GoodsReceiptUI, "record_id" | "supplier_name" | "item_name"> | GoodsReceiptUI) => {
-    const supplier = suppliers.find((s) => s.record_id === data.supplier);
-    const item = items.find((i) => i.record_id === data.item);
-
-    if ("record_id" in data && data.record_id) {
-      setGoodsReceipts((prev) =>
-        prev.map((gr) =>
-          gr.record_id === data.record_id
-            ? { ...data, supplier_name: supplier?.name, item_name: item?.name }
-            : gr
-        )
-      );
-    } else {
-      const newReceipt: GoodsReceiptUI = {
-        ...data,
-        record_id: Date.now().toString(),
-        supplier_name: supplier?.name,
-        item_name: item?.name,
+  // Goods Receipt handlers with real API
+  const handleAddGoodsReceipt = async (data: Omit<GoodsReceiptUI, "record_id" | "supplier_name" | "item_name"> | GoodsReceiptUI) => {
+    try {
+      const fields: GoodsReceipt["fields"] = {
+        receipt_number: data.receipt_number,
+        supplier: createRecordUrl(APP_IDS.SUPPLIERS, data.supplier),
+        item: createRecordUrl(APP_IDS.INVENTORY, data.item),
+        quantity: data.quantity,
+        receipt_date: data.receipt_date,
+        notes: data.notes,
       };
-      setGoodsReceipts((prev) => [...prev, newReceipt]);
 
-      // Update inventory quantity
-      if (item) {
-        setItems((prev) =>
-          prev.map((i) =>
-            i.record_id === data.item
-              ? { ...i, quantity: i.quantity + data.quantity }
-              : i
-          )
-        );
+      if ("record_id" in data && data.record_id) {
+        await LivingAppsService.updateGoodsReceiptEntry(data.record_id, fields);
+      } else {
+        await LivingAppsService.createGoodsReceiptEntry(fields);
+
+        // Update inventory quantity for new receipt
+        const item = items.find((i) => i.record_id === data.item);
+        if (item) {
+          const invFields: Inventory["fields"] = {
+            quantity: item.quantity + data.quantity,
+          };
+          await LivingAppsService.updateInventoryEntry(data.item, invFields);
+        }
       }
+
+      await loadAllData();
+    } catch (error) {
+      console.error("Fehler beim Speichern:", error);
     }
     setEditGoodsReceipt(null);
   };
 
-  const handleDeleteGoodsReceipt = (id: string) => {
+  const handleDeleteGoodsReceipt = async (id: string) => {
     if (confirm("Möchten Sie diesen Wareneingang wirklich löschen?")) {
-      setGoodsReceipts((prev) => prev.filter((gr) => gr.record_id !== id));
+      try {
+        await LivingAppsService.deleteGoodsReceiptEntry(id);
+        setGoodsReceipts((prev) => prev.filter((gr) => gr.record_id !== id));
+      } catch (error) {
+        console.error("Fehler beim Löschen:", error);
+      }
     }
   };
 

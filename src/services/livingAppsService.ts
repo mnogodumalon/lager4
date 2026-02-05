@@ -1,6 +1,6 @@
 // AUTOMATICALLY GENERATED SERVICE
 import { APP_IDS } from '@/types/app';
-import type { Categories, Locations, Inventory } from '@/types/app';
+import type { Categories, Locations, Inventory, Suppliers, GoodsReceipt } from '@/types/app';
 
 // Base Configuration
 const API_BASE_URL = 'https://my.living-apps.de/rest';
@@ -92,6 +92,48 @@ export class LivingAppsService {
   }
   static async deleteInventoryEntry(id: string) {
     return callApi('DELETE', `/apps/${APP_IDS.INVENTORY}/records/${id}`);
+  }
+
+  // --- SUPPLIERS ---
+  static async getSuppliers(): Promise<Suppliers[]> {
+    const data = await callApi('GET', `/apps/${APP_IDS.SUPPLIERS}/records`);
+    return Object.entries(data).map(([id, rec]: [string, any]) => ({
+      record_id: id, ...rec
+    }));
+  }
+  static async getSupplier(id: string): Promise<Suppliers | undefined> {
+    const data = await callApi('GET', `/apps/${APP_IDS.SUPPLIERS}/records/${id}`);
+    return { record_id: data.id, ...data };
+  }
+  static async createSupplier(fields: Suppliers['fields']) {
+    return callApi('POST', `/apps/${APP_IDS.SUPPLIERS}/records`, { fields });
+  }
+  static async updateSupplier(id: string, fields: Partial<Suppliers['fields']>) {
+    return callApi('PATCH', `/apps/${APP_IDS.SUPPLIERS}/records/${id}`, { fields });
+  }
+  static async deleteSupplier(id: string) {
+    return callApi('DELETE', `/apps/${APP_IDS.SUPPLIERS}/records/${id}`);
+  }
+
+  // --- GOODS_RECEIPT ---
+  static async getGoodsReceipt(): Promise<GoodsReceipt[]> {
+    const data = await callApi('GET', `/apps/${APP_IDS.GOODS_RECEIPT}/records`);
+    return Object.entries(data).map(([id, rec]: [string, any]) => ({
+      record_id: id, ...rec
+    }));
+  }
+  static async getGoodsReceiptEntry(id: string): Promise<GoodsReceipt | undefined> {
+    const data = await callApi('GET', `/apps/${APP_IDS.GOODS_RECEIPT}/records/${id}`);
+    return { record_id: data.id, ...data };
+  }
+  static async createGoodsReceiptEntry(fields: GoodsReceipt['fields']) {
+    return callApi('POST', `/apps/${APP_IDS.GOODS_RECEIPT}/records`, { fields });
+  }
+  static async updateGoodsReceiptEntry(id: string, fields: Partial<GoodsReceipt['fields']>) {
+    return callApi('PATCH', `/apps/${APP_IDS.GOODS_RECEIPT}/records/${id}`, { fields });
+  }
+  static async deleteGoodsReceiptEntry(id: string) {
+    return callApi('DELETE', `/apps/${APP_IDS.GOODS_RECEIPT}/records/${id}`);
   }
 
 }

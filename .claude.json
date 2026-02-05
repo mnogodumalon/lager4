@@ -14,5 +14,26 @@
     "mnogodumalon/lager4": [
       "/home/user/app"
     ]
+  },
+  "projects": {
+    "/home/user/app": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "claude_agent.py",
+        "Dashboard.tsx",
+        "package-lock.json",
+        ".claude.json",
+        "index.html"
+      ],
+      "exampleFilesGeneratedAt": 1770302255377
+    }
   }
 }
