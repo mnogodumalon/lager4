@@ -9,5 +9,10 @@
   "firstStartTime": "2026-02-05T14:08:01.340Z",
   "userID": "9ae3ac8c117ae335ebad8ecec688cb6155fcf7083a97321fc17afd0c7d52b816",
   "sonnet45MigrationComplete": true,
-  "opus45MigrationComplete": true
+  "opus45MigrationComplete": true,
+  "githubRepoPaths": {
+    "mnogodumalon/lager4": [
+      "/home/user/app"
+    ]
+  }
 }

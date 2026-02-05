@@ -8,6 +8,8 @@ import { InventoryTable, type InventoryItem } from "@/components/InventoryTable"
 import { InventoryDialog } from "@/components/InventoryDialog";
 import { CategoryDialog } from "@/components/CategoryDialog";
 import { LocationDialog } from "@/components/LocationDialog";
+import { SupplierDialog, type SupplierUI } from "@/components/SupplierDialog";
+import { GoodsReceiptDialog, type GoodsReceiptUI } from "@/components/GoodsReceiptDialog";
 import {
   Package,
   Warehouse,
@@ -19,6 +21,8 @@ import {
   MapPin,
   Pencil,
   Trash2,
+  Truck,
+  ClipboardList,
 } from "lucide-react";
 import { LivingAppsService, extractRecordId, createRecordUrl } from "@/services/livingAppsService";
 import { APP_IDS, type Categories, type Locations, type Inventory } from "@/types/app";
@@ -85,6 +89,12 @@ export default function Dashboard() {
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [editCategory, setEditCategory] = useState<CategoryUI | null>(null);
   const [editLocation, setEditLocation] = useState<LocationUI | null>(null);
+  const [suppliers, setSuppliers] = useState<SupplierUI[]>([]);
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [editSupplier, setEditSupplier] = useState<SupplierUI | null>(null);
+  const [goodsReceipts, setGoodsReceipts] = useState<GoodsReceiptUI[]>([]);
+  const [goodsReceiptDialogOpen, setGoodsReceiptDialogOpen] = useState(false);
+  const [editGoodsReceipt, setEditGoodsReceipt] = useState<GoodsReceiptUI | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load data on mount
@@ -230,6 +240,70 @@ export default function Dashboard() {
     }
   };
 
+  // Supplier handlers (using local state for now)
+  const handleAddSupplier = (data: Omit<SupplierUI, "record_id"> | SupplierUI) => {
+    if ("record_id" in data && data.record_id) {
+      setSuppliers((prev) =>
+        prev.map((sup) => (sup.record_id === data.record_id ? { ...sup, ...data } : sup))
+      );
+    } else {
+      const newSupplier: SupplierUI = {
+        ...data,
+        record_id: Date.now().toString(),
+      };
+      setSuppliers((prev) => [...prev, newSupplier]);
+    }
+    setEditSupplier(null);
+  };
+
+  const handleDeleteSupplier = (id: string) => {
+    if (confirm("Möchten Sie diesen Lieferanten wirklich löschen?")) {
+      setSuppliers((prev) => prev.filter((sup) => sup.record_id !== id));
+    }
+  };
+
+  // Goods Receipt handlers
+  const handleAddGoodsReceipt = (data: Omit<GoodsReceiptUI, "record_id" | "supplier_name" | "item_name"> | GoodsReceiptUI) => {
+    const supplier = suppliers.find((s) => s.record_id === data.supplier);
+    const item = items.find((i) => i.record_id === data.item);
+
+    if ("record_id" in data && data.record_id) {
+      setGoodsReceipts((prev) =>
+        prev.map((gr) =>
+          gr.record_id === data.record_id
+            ? { ...data, supplier_name: supplier?.name, item_name: item?.name }
+            : gr
+        )
+      );
+    } else {
+      const newReceipt: GoodsReceiptUI = {
+        ...data,
+        record_id: Date.now().toString(),
+        supplier_name: supplier?.name,
+        item_name: item?.name,
+      };
+      setGoodsReceipts((prev) => [...prev, newReceipt]);
+
+      // Update inventory quantity
+      if (item) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.record_id === data.item
+              ? { ...i, quantity: i.quantity + data.quantity }
+              : i
+          )
+        );
+      }
+    }
+    setEditGoodsReceipt(null);
+  };
+
+  const handleDeleteGoodsReceipt = (id: string) => {
+    if (confirm("Möchten Sie diesen Wareneingang wirklich löschen?")) {
+      setGoodsReceipts((prev) => prev.filter((gr) => gr.record_id !== id));
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -296,6 +370,14 @@ export default function Dashboard() {
             <TabsTrigger value="locations" className="gap-2">
               <MapPin className="h-4 w-4" />
               Lagerorte
+            </TabsTrigger>
+            <TabsTrigger value="suppliers" className="gap-2">
+              <Truck className="h-4 w-4" />
+              Lieferanten
+            </TabsTrigger>
+            <TabsTrigger value="goods-receipt" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Wareneingang
             </TabsTrigger>
           </TabsList>
 
@@ -471,6 +553,159 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="suppliers" className="space-y-4">
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-xl">Lieferanten</CardTitle>
+                  <Button
+                    onClick={() => {
+                      setEditSupplier(null);
+                      setSupplierDialogOpen(true);
+                    }}
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Lieferant
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {suppliers.length === 0 ? (
+                    <p className="text-muted-foreground col-span-full text-center py-8">
+                      Keine Lieferanten vorhanden
+                    </p>
+                  ) : (
+                    suppliers.map((supplier) => (
+                      <Card key={supplier.record_id} className="bg-secondary/30">
+                        <CardContent className="pt-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-semibold">{supplier.name}</h3>
+                              {supplier.contact_person && (
+                                <p className="text-sm text-muted-foreground">
+                                  {supplier.contact_person}
+                                </p>
+                              )}
+                              {supplier.email && (
+                                <p className="text-sm text-primary">{supplier.email}</p>
+                              )}
+                              {supplier.phone && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Tel: {supplier.phone}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => {
+                                  setEditSupplier(supplier);
+                                  setSupplierDialogOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => handleDeleteSupplier(supplier.record_id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="goods-receipt" className="space-y-4">
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-xl">Wareneingang</CardTitle>
+                  <Button
+                    onClick={() => {
+                      setEditGoodsReceipt(null);
+                      setGoodsReceiptDialogOpen(true);
+                    }}
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Wareneingang
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-lg border bg-card overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-secondary/50 border-b">
+                        <th className="text-left p-3 font-medium">Lieferschein</th>
+                        <th className="text-left p-3 font-medium">Datum</th>
+                        <th className="text-left p-3 font-medium">Lieferant</th>
+                        <th className="text-left p-3 font-medium">Artikel</th>
+                        <th className="text-right p-3 font-medium">Menge</th>
+                        <th className="text-right p-3 font-medium">Aktionen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {goodsReceipts.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                            Keine Wareneingänge vorhanden
+                          </td>
+                        </tr>
+                      ) : (
+                        goodsReceipts.map((receipt) => (
+                          <tr key={receipt.record_id} className="border-b last:border-0 hover:bg-muted/50">
+                            <td className="p-3 font-mono">{receipt.receipt_number}</td>
+                            <td className="p-3">
+                              {new Date(receipt.receipt_date).toLocaleDateString("de-DE")}
+                            </td>
+                            <td className="p-3">{receipt.supplier_name}</td>
+                            <td className="p-3">{receipt.item_name}</td>
+                            <td className="p-3 text-right font-medium">{receipt.quantity}</td>
+                            <td className="p-3 text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => {
+                                    setEditGoodsReceipt(receipt);
+                                    setGoodsReceiptDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => handleDeleteGoodsReceipt(receipt.record_id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -494,6 +729,20 @@ export default function Dashboard() {
         onOpenChange={setLocationDialogOpen}
         onSubmit={handleAddLocation}
         editItem={editLocation}
+      />
+      <SupplierDialog
+        open={supplierDialogOpen}
+        onOpenChange={setSupplierDialogOpen}
+        onSubmit={handleAddSupplier}
+        editItem={editSupplier}
+      />
+      <GoodsReceiptDialog
+        open={goodsReceiptDialogOpen}
+        onOpenChange={setGoodsReceiptDialogOpen}
+        onSubmit={handleAddGoodsReceipt}
+        editItem={editGoodsReceipt}
+        suppliers={suppliers}
+        items={items}
       />
     </div>
   );
