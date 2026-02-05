@@ -1,0 +1,37 @@
+[
+  {
+    "content": "Read existing App.tsx and main structure",
+    "status": "completed",
+    "activeForm": "Reading existing codebase structure"
+  },
+  {
+    "content": "Update design system in index.css",
+    "status": "completed",
+    "activeForm": "Updating design system"
+  },
+  {
+    "content": "Create inventory management components",
+    "status": "completed",
+    "activeForm": "Creating inventory components"
+  },
+  {
+    "content": "Create main Dashboard page",
+    "status": "completed",
+    "activeForm": "Creating Dashboard page"
+  },
+  {
+    "content": "Create LivingApps backend for data persistence",
+    "status": "completed",
+    "activeForm": "Creating LivingApps backend"
+  },
+  {
+    "content": "Wire up API and replace mock data",
+    "status": "completed",
+    "activeForm": "Wiring up API"
+  },
+  {
+    "content": "Build and deploy",
+    "status": "in_progress",
+    "activeForm": "Building and deploying"
+  }
+]
